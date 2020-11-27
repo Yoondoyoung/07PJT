@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="PurchaseMapper">
+
+
+	<resultMap id="purchaseSelectMap" type="purchase">
+		<result property="tranNo" column="TRAN_NO" jdbcType="INTEGER" />
+		<result property="purchaseProd.prodNo" column="PROD_NO"
+			jdbcType="INTEGER" />
+			<result property="purchaseProd.prodName" column="PROD_NAME"
+			jdbcType="VARCHAR" />
+			<result property="purchaseProd.regDate" column="REG_DATE"
+			jdbcType="DATE" />
+			<result property="purchaseProd.price" column="PRICE"
+			jdbcType="INTEGER" />
+		<result property="buyer.userId" column="BUYER_ID"
+			jdbcType="VARCHAR" />
+		<result property="buyer.userName" column="user_name"/>
+		<result property="buyer.phone" column="cell_phone"/>
+		<result property="paymentOption" column="PAYMENT_OPTION"
+			jdbcType="CHAR" />
+		<result property="receiverName" column="RECEIVER_NAME" jdbcType="VARCHAR" />
+		<result property="receiverPhone" column="RECEIVER_PHONE"
+			jdbcType="VARCHAR" />
+		<result property="divyAddr" column="DEMAILADDR" jdbcType="VARCHAR" />
+		<result property="divyRequest" column="DLVY_REQUEST" jdbcType="VARCHAR" />
+		<result property="tranCode" column="TRAN_STATUS_CODE" jdbcType="CHAR" />
+		<result property="orderDate" column="ORDER_DATA" jdbcType="DATE" />
+		<result property="divyDate" column="DLVY_DATE" jdbcType="DATE" />
+	</resultMap>
+
+	<!-- SQL : INSERT -->
+	<insert id="addPurchase" parameterType="purchase">
+		INSERT INTO transaction(tran_no, prod_no, buyer_id, payment_option,
+		receiver_name, receiver_phone, demailAddr, dlvy_request,
+		tran_status_code, order_data, dlvy_date)
+	VALUES(seq_transaction_tran_no.NEXTVAL, #{purchaseProd.prodNo:INTEGER}, #{buyer.userId:VARCHAR}, #{paymentOption:VARCHAR},
+		#{receiverName:VARCHAR},#{receiverPhone:VARCHAR},#{divyAddr:VARCHAR},#{divyRequest:VARCHAR},'1',
+		SYSDATE,#{divyDate:VARCHAR})
+	</insert>
+
+	<!-- SQL : SELECT ONE -->
+	<select id="getPurchase" parameterType="string"
+		resultMap="purchaseSelectMap">
+		SELECT * 
+		FROM transaction 
+		WHERE tran_no = #{tranNo}
+	</select>
+	
+	<select id="getPurchase2" parameterType="string"
+		resultMap="purchaseSelectMap">
+		SELECT * 
+		FROM transaction 
+		WHERE prod_no = #{purchaseProd.prodNo}
+	</select>
+
+	<!-- SQL : UPDATE -->
+	<update id="updatePurchase" parameterType="purchase">
+		UPDATE transaction
+		<set>
+			  RECEIVER_NAME=#{receiverName:VARCHAR},RECEIVER_PHONE=#{receiverPhone:VARCHAR},DEMAILADDR=#{divyAddr:VARCHAR},
+				 DLVY_REQUEST=#{divyRequest:VARCHAR}
+		</set>
+		where tran_no=#{tranNo:INTEGER}
+	</update>
+	
+	<update id="updateTranCode" parameterType="purchase">
+		UPDATE transaction
+		<set>
+			   tran_status_code = #{tranCode:VARCHAR}
+		</set>
+		where tran_no=#{tranNo:INTEGER}
+	</update>
+
+	<!-- SQL : SELECT LIST -->
+	<select id="getPurchaseList" parameterType="map" resultMap="purchaseSelectMap">
+		SELECT *
+  		FROM ( SELECT inner_table.*, ROWNUM AS row_seq
+  						FROM ( SELECT t.tran_no, p.prod_no, t.order_data, t.tran_status_code ,t.buyer_id, u.user_name,u.cell_phone
+										FROM transaction t, product p, users u 
+										WHERE t.prod_no = p.prod_no 
+										AND t.buyer_id = u.user_id 
+										AND u.user_id = #{buyer}
+										ORDER BY tran_no  ) inner_table
+  						WHERE ROWNUM <![CDATA[<=]]> #{search.currentPage}*#{search.pageSize} )
+  		WHERE row_seq BETWEEN (#{search.currentPage}-1)*#{search.pageSize}+1
+  		AND #{search.currentPage}*#{search.pageSize}
+	</select>
+	<!-- 위 두번째 subQuery 의 WHERE ROWNUM &lt;= #{endRowNum} ) 는 WHERE ROWNUM <= 
+		#{endRowNum} ) 의미이며.. < 는 keyword 로 &lt; 를 사용. <![CDATA[ ~~~ ]]> 를 이용하여 아래와 
+		같이 사용 할 수 있다. CDATA ==> Character Data 의 의미 Java 에서 \n 같은 특수문자 처리 WHERE ROWNUM 
+		<![CDATA[ <=]]> #{endRowNum} ) -->
+	<select id="getSaleList" parameterType="map" resultMap="purchaseSelectMap">
+		SELECT * FROM ( SELECT inner_table.* ,  ROWNUM AS row_seq  
+						FROM (SELECT p.prod_no,p.prod_name,p.price,p.reg_date,t.tran_status_code
+									from product p, transaction t where p.prod_no=t.prod_no(+)
+		<if test="searchCondition != null">
+			<where>
+				<if test="searchCondition == 0 and searchKeyword !='' ">
+					prod_no = #{search.searchKeyword}
+				</if>
+				<if test="searchCondition == 1 and searchKeyword !='' ">
+					prod_name like '%'||#{search.searchKeyword}||'%'
+				</if>
+				<if test="searchCondition == 2 and searchKeyword !='' ">
+					price = #{search.searchKeyword}
+				</if>
+			</where>
+		</if>
+		<if test="searchCondition != null">
+			<if test="searchCondition == 3 and searchKeyword !='' ">
+				order by price
+			</if>
+			<if test="searchCondition == 4 and searchKeyword !='' ">
+				order by price desc
+			</if>
+		</if>
+		 ) inner_table
+		WHERE ROWNUM &lt;= #{search.endRowNum} )
+		WHERE row_seq BETWEEN
+		#{search.startRowNum} AND
+		#{search.endRowNum}
+	</select>
+		
+
+	<!-- SQL : SELECT ROW Count -->
+	<select id="getTotalCount" parameterType="search"
+		resultType="int">
+		SELECT COUNT(*)
+		FROM( SELECT tran_no, tran_status_code
+		FROM transaction
+		<if test="searchCondition != null">
+			<where>
+				<if test="searchCondition == 0 and searchKeyword !='' ">
+					tran_no = #{searchKeyword}
+				</if>
+				<if test="searchCondition == 1 and searchKeyword !='' ">
+					tran_status_code = #{searchKeyword}
+				</if>
+			</where>
+		</if>
+		) countTable
+	</select>
+	
+	<select id="getTotalCount2" parameterType="search"
+		resultType="int">
+		SELECT COUNT(*)
+		FROM( SELECT prod_no , prod_name , price
+		FROM product
+		<if test="searchCondition != null">
+			<where>
+				<if test="searchCondition == 0 and searchKeyword !='' ">
+					prod_no = #{searchKeyword}
+				</if>
+				<if test="searchCondition == 1 and searchKeyword !='' ">
+					prod_name = #{searchKeyword}
+				</if>
+			</where>
+		</if>
+		) countTable
+	</select>
+
+</mapper>

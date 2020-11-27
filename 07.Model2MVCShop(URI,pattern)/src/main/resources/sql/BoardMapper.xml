@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="BoardMapper">
+ 	
+ 	
+	<resultMap id="boardSelectMap" type="board">
+		<result property="user" 			column="user_id" 			jdbcType="VARCHAR"/>
+		<result property="cmt"	column="comment_no" 		jdbcType="INTEGER" />
+		<result property="boardTitle" 	column="board_title" 		jdbcType="VARCHAR" />
+		<result property="board" 				column="board" 					jdbcType="VARCHAR" />
+		<result property="viewCount" 				column="view_count" 					jdbcType="INTEGER" />
+		<result property="boardNo" 				column="board_no" 					jdbcType="INTEGER" />
+	</resultMap>
+	
+	<!-- SQL : INSERT -->
+	<insert 	id="addBoard"		parameterType="board" >
+	 	INSERT
+		INTO board(user_id , comment_no , board_title , board , view_count, board_no,reg_date) 
+		VALUES	 (	#{userId:VARCHAR} , #{cmt:VARCHAR} , #{boardTitle:VARCHAR} , '1' , seq_board_no.NEXTVAL , 
+							SYSDATE)
+	 </insert>
+	 
+</mapper>
